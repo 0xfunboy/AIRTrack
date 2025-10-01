@@ -1,6 +1,6 @@
 # AIRTrack — Trading Operations Dashboard
 
-AIRTrack is a full-stack dashboard for managing discretionary trading activity. The project now ships as a lean TypeScript codebase with a Vite/React client, an Express API written in TypeScript, Prisma ORM, and a zero-config SQLite database for local use.
+AIRTrack is a full-stack dashboard for managing discretionary trading activity. The project now ships as a lean TypeScript codebase with a Vite/React client, an Express API written in TypeScript, Prisma ORM, and a PostgreSQL database layer (SQLite remains an option if you tweak the schema).
 
 ## Features
 - **Realtime trading board** – add, edit, and close trades with live P/L charts.
@@ -12,7 +12,7 @@ AIRTrack is a full-stack dashboard for managing discretionary trading activity. 
 ## Tech Stack
 - React 18 + Vite + Tailwind via CDN for the frontend experience.
 - Express 5 (TypeScript) with JWT auth and SIWE verification for the API layer.
-- Prisma ORM targeting SQLite by default (switchable via `DATABASE_URL`).
+- Prisma ORM targeting PostgreSQL by default (switchable via `DATABASE_URL`).
 - WebSockets (`ws`) for realtime broadcasting.
 - WalletConnect / ethers.js for wallet interactions.
 
@@ -30,9 +30,24 @@ AIRTrack is a full-stack dashboard for managing discretionary trading activity. 
    Update the values (at minimum `JWT_SECRET`, `VITE_WALLETCONNECT_PROJECT_ID`, and `ADMIN_WALLETS`).
 3. **Provision the database**
    ```bash
+   # One-time Postgres setup (skip if already done)
+   sudo apt install postgresql postgresql-contrib
+   sudo -u postgres psql <<'SQL'
+   CREATE ROLE airtrack_user WITH LOGIN PASSWORD 'change-me';
+   ALTER ROLE airtrack_user SET client_encoding TO 'UTF8';
+   ALTER ROLE airtrack_user SET timezone TO 'UTC';
+   CREATE DATABASE airtrack OWNER airtrack_user;
+   GRANT ALL PRIVILEGES ON DATABASE airtrack TO airtrack_user;
+   SQL
+   sudo -u postgres psql -d airtrack -c \
+     "GRANT ALL ON SCHEMA public TO airtrack_user;"
+   ```
+
+   Update `.env` with your connection string and then:
+   ```bash
    pnpm db:push
    ```
-   This creates `prisma/dev.db` (SQLite) along with the required tables.
+   Prisma will sync the schema (`public` schema by default) and generate the client.
 4. **Run the full stack**
    ```bash
    pnpm dev
@@ -49,13 +64,44 @@ AIRTrack is a full-stack dashboard for managing discretionary trading activity. 
 - `pnpm db:reset` — drop and recreate the database (dangerous in production).
 - `pnpm migrate` — run Prisma migrations in production environments.
 - `pnpm typecheck` — run TypeScript checks for both client and server.
+- `./run.sh` — helper script used by the systemd unit to install, build, and start the app in production.
+
+## Production service helper
+
+`run.sh` wraps the `pnpm install → pnpm build → pnpm start` pipeline and is designed to be executed by a process manager. A sample systemd unit:
+
+```ini
+[Unit]
+Description=AIRTrack dApp (API+UI on 127.0.0.1:5883)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=airtrack
+Group=airtrack
+WorkingDirectory=/opt/airtrack
+EnvironmentFile=/opt/airtrack/.env
+ExecStart=/opt/airtrack/run.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start with:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now airtrack-5883
+```
 
 ## Environment Reference
 All variables live in `.env` and are optional unless stated otherwise.
 
 | Key | Purpose |
 | --- | --- |
-| `DATABASE_URL` | Prisma connection string (defaults to `file:./prisma/dev.db`). |
+| `DATABASE_URL` | Prisma connection string (defaults to Postgres `postgresql://airtrack_user:change-me@localhost:5432/airtrack?schema=public`). |
 | `PORT` / `WS_PORT` | API and WebSocket ports. |
 | `JWT_SECRET` | Secret used to sign authentication tokens. |
 | `ADMIN_WALLETS` | Comma-separated wallet addresses promoted to admin on first login. |
@@ -98,7 +144,7 @@ All variables live in `.env` and are optional unless stated otherwise.
 | --- | --- |
 | `pnpm install` fails | Ensure you have internet access or use a local package mirror. The repo adds new dev dependencies (`tsx`, `concurrently`, `@types/*`). |
 | Wallet modal crashes on load | Double-check `VITE_WALLETCONNECT_PROJECT_ID`. Without a valid value the modal cannot initialize. |
-| SQLite file is missing | Run `pnpm db:push` (it auto-creates `prisma/dev.db`). |
+| Postgres connection fails | Confirm the service is running (`sudo systemctl status postgresql`) and that `DATABASE_URL` matches your credentials. |
 | API rejects admin actions | Confirm your wallet address is listed in `ADMIN_WALLETS` and that you signed in via SIWE. |
 
 ---
