@@ -44,10 +44,28 @@ interface AuthProviderProps {
   children?: ReactNode;
 }
 
+const buildInitialEnvConfig = (): EnvConfig => {
+  const entries: EnvConfig = {};
+
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    const raw = import.meta.env as Record<string, string | number | boolean | undefined>;
+    for (const [key, value] of Object.entries(raw)) {
+      if (!key.startsWith('VITE_')) continue;
+      if (typeof value === 'string') entries[key] = value;
+    }
+  }
+
+  if (!entries.VITE_DEFAULT_TIMEFRAME) entries.VITE_DEFAULT_TIMEFRAME = '1h';
+  if (!entries.VITE_API_SECRET_TOKEN) entries.VITE_API_SECRET_TOKEN = '';
+  if (!entries.VITE_TWEET_SOURCE) entries.VITE_TWEET_SOURCE = '';
+
+  return entries;
+};
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [token, setTokenState] = useState<string | null>(null);
-  const [envConfig, setEnvConfig] = useState<EnvConfig>({});
+  const [envConfig, setEnvConfig] = useState<EnvConfig>(() => buildInitialEnvConfig());
 
   const loginWithWallet = useCallback(
     async ({ address, chainId, walletProvider }: { address: string; chainId: number; walletProvider: WalletProvider; }) => {

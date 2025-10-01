@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import ReportStats from './ReportStats';
 import TradeList from './TradeList';
 import CandlestickChart from './CandlestickChart';
@@ -25,8 +25,10 @@ const PAGE_SIZE = 10;
 
 type StatusFilter = 'ALL' | TradeStatus.OPEN | TradeStatus.PENDING;
 type PendingAction = { type: 'force' | 'remove'; trade: Trade } | null;
+const ALLOWED_TIMEFRAMES = new Set(['1m', '5m', '15m', '30m', '1h', '4h']);
+
 function Dashboard() {
-  const { isAdmin, token } = useAuth();
+  const { isAdmin, token, envConfig } = useAuth();
   const { showToast } = useToast();
 
   const [activeTrades, setActiveTrades] = useState<Trade[]>([]);
@@ -47,6 +49,11 @@ function Dashboard() {
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [actionInFlight, setActionInFlight] = useState(false);
   const [shareTarget, setShareTarget] = useState<Trade | null>(null);
+
+  const chartTimeframe = useMemo(() => {
+    const raw = (envConfig.VITE_DEFAULT_TIMEFRAME || '').toLowerCase();
+    return ALLOWED_TIMEFRAMES.has(raw) ? raw : '1h';
+  }, [envConfig]);
 
   const loadActiveTrades = useCallback(async () => {
     setError(null);
@@ -125,7 +132,7 @@ function Dashboard() {
     const run = async () => {
       try {
         setIsLoading((prev) => ({ ...prev, chart: true }));
-        const data = await fetchOhlcv(selectedTrade.id);
+        const data = await fetchOhlcv(selectedTrade.id, { timeframe: chartTimeframe });
         setChartData(data);
       } catch (err) {
         console.error(err);
@@ -137,7 +144,7 @@ function Dashboard() {
     };
 
     run();
-  }, [selectedTrade]);
+  }, [selectedTrade, chartTimeframe]);
 
   const handleTradeMouseOver = (trade: Trade, e: React.MouseEvent) => {
     setHoveredTrade(trade);
@@ -224,7 +231,12 @@ function Dashboard() {
             />
           </div>
           <div className="lg:col-span-2 space-y-8">
-            <CandlestickChart trade={selectedTrade} ohlcvData={chartData} isLoading={isLoading.chart} />
+            <CandlestickChart
+              trade={selectedTrade}
+              ohlcvData={chartData}
+              isLoading={isLoading.chart}
+              timeframe={chartTimeframe}
+            />
             <ClosedTradesTable
               trades={closedTrades}
               isLoading={isLoading.closed}

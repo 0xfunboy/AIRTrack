@@ -73,7 +73,10 @@ function ApiInstructionsPage({ onBack }: ApiInstructionsPageProps) {
         {/* Authentication */}
         <section>
             <h3 className="text-xl font-semibold text-white mb-2">Authentication</h3>
-            <p>Requests must be authenticated using a Bearer Token in the <code className="bg-white/10 px-1 rounded">Authorization</code> header. The token is your configured <code className="bg-white/10 px-1 rounded">API_SECRET_TOKEN</code>.</p>
+            <p>
+              Requests must be authenticated using a Bearer token in the <code className="bg-white/10 px-1 rounded">Authorization</code> header.
+              Use the alphanumeric secret saved under <em>Profile → API Access</em>.
+            </p>
             <CodeBlock>Authorization: Bearer {apiSecret}</CodeBlock>
         </section>
 

@@ -33,7 +33,17 @@ interface CandlestickChartProps {
   trade: Trade | null;
   ohlcvData: OhlcvResponse | null;
   isLoading: boolean;
+  timeframe: string;
 }
+
+const TIMEFRAME_META: Record<string, { unit: 'minute' | 'hour'; label: string; displayFormat: string }> = {
+  '1m': { unit: 'minute', label: '1m', displayFormat: 'HH:mm' },
+  '5m': { unit: 'minute', label: '5m', displayFormat: 'HH:mm' },
+  '15m': { unit: 'minute', label: '15m', displayFormat: 'HH:mm' },
+  '30m': { unit: 'minute', label: '30m', displayFormat: 'HH:mm' },
+  '1h': { unit: 'hour', label: '1h', displayFormat: 'MMM d, HH:mm' },
+  '4h': { unit: 'hour', label: '4h', displayFormat: 'MMM d, HH:mm' },
+};
 
 const PnlDisplay = ({ pnl, pnlChange }: { pnl: number, pnlChange: 'up' | 'down' | 'none' }) => {
   const isPositive = pnl >= 0;
@@ -49,7 +59,9 @@ const PnlDisplay = ({ pnl, pnlChange }: { pnl: number, pnlChange: 'up' | 'down' 
   );
 };
 
-function CandlestickChart({ trade, ohlcvData, isLoading }: CandlestickChartProps) {
+function CandlestickChart({ trade, ohlcvData, isLoading, timeframe }: CandlestickChartProps) {
+  const tfKey = (ohlcvData?.tf || timeframe || '').toLowerCase();
+  const tfConfig = TIMEFRAME_META[tfKey] ?? TIMEFRAME_META['1h'];
   const [entryAnnotation, setEntryAnnotation] = useState<any>(null);
   const [pnlChange, setPnlChange] = useState<'up' | 'down' | 'none'>('none');
   const prevPnlRef = useRef<number | undefined>(undefined);
@@ -152,10 +164,11 @@ function CandlestickChart({ trade, ohlcvData, isLoading }: CandlestickChartProps
       x: {
         type: 'time' as const,
         time: {
-          unit: 'hour' as const,
+          unit: tfConfig.unit,
           displayFormats: {
-            hour: 'MMM d, HH:mm'
-          }
+            hour: tfConfig.displayFormat,
+            minute: tfConfig.displayFormat,
+          },
         },
         grid: { color: 'rgba(255, 255, 255, 0.1)' },
         ticks: { color: '#9CA3AF' },
@@ -230,9 +243,12 @@ function CandlestickChart({ trade, ohlcvData, isLoading }: CandlestickChartProps
   return (
     <div className="bg-black/30 backdrop-blur-sm border border-white/10 p-4 rounded-lg shadow-lg h-96 min-h-[400px]">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-bold text-white bg-gradient-to-r from-red-500 via-pink-500 to-rose-400 text-transparent bg-clip-text">
-          {trade ? `${trade.symbol} – Candlestick Chart` : 'Chart'}
-        </h3>
+        <div>
+          <h3 className="text-lg font-bold text-white bg-gradient-to-r from-red-500 via-pink-500 to-rose-400 text-transparent bg-clip-text">
+            {trade ? `${trade.symbol} – Candlestick Chart` : 'Chart'}
+          </h3>
+          <p className="text-xs text-gray-400">Timeframe: {tfConfig.label}</p>
+        </div>
         {trade?.status === TradeStatus.OPEN && typeof trade.unrealized_pnl_pct === 'number' && (
           <PnlDisplay pnl={trade.unrealized_pnl_pct} pnlChange={pnlChange} />
         )}

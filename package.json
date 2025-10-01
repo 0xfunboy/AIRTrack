@@ -5,11 +5,18 @@
   "description": "AIRTrack - Trade Tracker dashboard with candlestick chart and performance stats.",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "concurrently -k -n client,server \"pnpm dev:client\" \"pnpm dev:server\"",
+    "build": "pnpm typecheck && pnpm build:client && pnpm build:server",
     "preview": "vite preview --port 5173",
-    "start": "node server.js",
-    "migrate": "prisma migrate deploy"
+    "start": "node server/dist/index.js",
+    "migrate": "prisma migrate deploy",
+    "dev:client": "vite",
+    "dev:server": "tsx watch server/src/index.ts",
+    "build:client": "vite build",
+    "build:server": "tsc -p server/tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p server/tsconfig.json",
+    "db:push": "prisma db push",
+    "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
@@ -25,7 +32,6 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "siwe": "^2.3.2",
-    "node-cron": "^4.2.1",
     "prisma": "^6.16.2",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",
@@ -38,6 +44,13 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "typescript": "^5.5.4",
-    "vite": "^5.4.8"
+    "vite": "^5.4.8",
+    "@types/node": "^22.7.4",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/bcrypt": "^5.0.2",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.19.1",
+    "concurrently": "^9.0.1"
   }
 }

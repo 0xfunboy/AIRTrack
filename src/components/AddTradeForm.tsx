@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { TradeSide, TradeStatus } from '../types';
@@ -22,7 +22,15 @@ interface FormState {
   status: TradeStatus;
 }
 
-const initialState: FormState = {
+const formatLocalDateTime = (date: Date): string => {
+  const pad = (value: number) => value.toString().padStart(2, '0');
+  return [
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    `${pad(date.getHours())}:${pad(date.getMinutes())}`,
+  ].join('T');
+};
+
+const createInitialState = (): FormState => ({
   symbol: '',
   side: TradeSide.LONG,
   entry_price: '',
@@ -30,9 +38,9 @@ const initialState: FormState = {
   sl_price: '',
   quantity: '',
   post_url: '',
-  opened_at: '',
+  opened_at: formatLocalDateTime(new Date()),
   status: TradeStatus.PENDING,
-};
+});
 
 const InputField = ({
   id,
@@ -70,12 +78,14 @@ const InputField = ({
 );
 
 function AddTradeForm({ onTradeAdded, onCancel }: AddTradeFormProps) {
-  const { token } = useAuth();
+  const { token, envConfig } = useAuth();
   const { showToast } = useToast();
-  const [formData, setFormData] = useState<FormState>(initialState);
+  const [formData, setFormData] = useState<FormState>(() => createInitialState());
   const [isSubmitting, setSubmitting] = useState(false);
   const [isCheckingPrice, setCheckingPrice] = useState(false);
   const [priceError, setPriceError] = useState<string | null>(null);
+
+  const tweetSource = useMemo(() => (envConfig.VITE_TWEET_SOURCE || '').trim().toLowerCase(), [envConfig]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -109,6 +119,23 @@ function AddTradeForm({ onTradeAdded, onCancel }: AddTradeFormProps) {
         throw new Error('Opened At is required for open trades.');
       }
 
+      const postUrl = formData.post_url.trim();
+      if (tweetSource && postUrl) {
+        try {
+          const parsed = new URL(postUrl);
+          const host = parsed.hostname.replace(/^www\./i, '').toLowerCase();
+          if (!['x.com', 'twitter.com'].includes(host)) {
+            throw new Error();
+          }
+          const [username] = parsed.pathname.split('/').filter(Boolean);
+          if (!username || username.toLowerCase() !== tweetSource) {
+            throw new Error();
+          }
+        } catch {
+          throw new Error(`Post URL must reference https://x.com/${tweetSource}`);
+        }
+      }
+
       const payload = {
         symbol: cleanSymbol(formData.symbol),
         side: formData.side,
@@ -116,7 +143,7 @@ function AddTradeForm({ onTradeAdded, onCancel }: AddTradeFormProps) {
         tp_price: parseFloat(formData.tp_price),
         sl_price: parseFloat(formData.sl_price),
         quantity: formData.quantity ? parseFloat(formData.quantity) : undefined,
-        post_url: formData.post_url || undefined,
+        post_url: postUrl || undefined,
         opened_at: formData.opened_at || undefined,
         status: formData.status,
       };
@@ -124,7 +151,7 @@ function AddTradeForm({ onTradeAdded, onCancel }: AddTradeFormProps) {
       await addTrade(payload, token);
       emitTradesRefresh();
       showToast('Trade successfully added.', { variant: 'success' });
-      setFormData(initialState);
+      setFormData(createInitialState());
       onTradeAdded();
       onCancel?.();
     } catch (err: any) {
@@ -214,8 +241,15 @@ function AddTradeForm({ onTradeAdded, onCancel }: AddTradeFormProps) {
         <InputField id="entry_price" label="Entry Price" type="number" step="any" value={formData.entry_price} onChange={handleChange} />
         <InputField id="tp_price" label="Take Profit" type="number" step="any" value={formData.tp_price} onChange={handleChange} />
         <InputField id="sl_price" label="Stop Loss" type="number" step="any" value={formData.sl_price} onChange={handleChange} />
-        <InputField id="post_url" label="Post URL" type="url" value={formData.post_url} onChange={handleChange} placeholder="https://" />
-        <InputField id="opened_at" label="Opened At" type="datetime-local" value={formData.opened_at} onChange={handleChange} required={formData.status === TradeStatus.OPEN} />
+        <InputField id="post_url" label="Post URL" type="url" value={formData.post_url} onChange={handleChange} placeholder="https://" required={false} />
+        <InputField
+          id="opened_at"
+          label="Opened At"
+          type="datetime-local"
+          value={formData.opened_at}
+          onChange={handleChange}
+          required={formData.status === TradeStatus.OPEN}
+        />
         <InputField id="quantity" label="Quantity (Optional)" type="number" step="any" value={formData.quantity} onChange={handleChange} required={false} />
 
         <div className="md:col-span-2 lg:col-span-3">

@@ -26,3 +26,5 @@ dist-ssr
 /generated/prisma
 .env
 tsconfig.tsbuildinfo
+prisma/dev.db
+prisma/dev.db-journal

@@ -1,115 +1,105 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/0xfunboy/AIRTrack/blob/main/AIRTrack_Frontend_demo.png" />
-</div>
+# AIRTrack — Trading Operations Dashboard
 
-# AIRTrack – Trade Tracker DApp
+AIRTrack is a full-stack dashboard for managing discretionary trading activity. The project now ships as a lean TypeScript codebase with a Vite/React client, an Express API written in TypeScript, Prisma ORM, and a zero-config SQLite database for local use.
 
-AIRTrack is a full-stack decentralized-inspired application for tracking and managing trading positions.  
-It provides a **React/Vite frontend**, a **Node.js/Express backend**, and a **PostgreSQL database**, designed for scalability and thousands of concurrent users.
+## Features
+- **Realtime trading board** – add, edit, and close trades with live P/L charts.
+- **Web3 authentication** – Sign-In-With-Ethereum (SIWE) flow plus wallet connect UI.
+- **Background automation** – worker loop keeps trade statuses and P/L in sync with live prices.
+- **WebSocket fan-out** – clients receive trade updates instantly without manual refreshes.
+- **Admin tooling** – API secrets, environment overrides, and database reset actions exposed in the UI.
 
----
+## Tech Stack
+- React 18 + Vite + Tailwind via CDN for the frontend experience.
+- Express 5 (TypeScript) with JWT auth and SIWE verification for the API layer.
+- Prisma ORM targeting SQLite by default (switchable via `DATABASE_URL`).
+- WebSockets (`ws`) for realtime broadcasting.
+- WalletConnect / ethers.js for wallet interactions.
 
-## 🚀 Features
+## Quickstart
+1. **Clone & install**
+   ```bash
+   git clone https://github.com/0xfunboy/AIRTrack.git
+   cd AIRTrack
+   pnpm install
+   ```
+2. **Copy environment template**
+   ```bash
+   cp .env.example .env
+   ```
+   Update the values (at minimum `JWT_SECRET`, `VITE_WALLETCONNECT_PROJECT_ID`, and `ADMIN_WALLETS`).
+3. **Provision the database**
+   ```bash
+   pnpm db:push
+   ```
+   This creates `prisma/dev.db` (SQLite) along with the required tables.
+4. **Run the full stack**
+   ```bash
+   pnpm dev
+   ```
+   - Client: http://localhost:5173
+   - API/WebSocket: http://localhost:5883
 
-- **Frontend** built with React + Vite
-  - Fast development with hot reload
-  - Production build optimized for performance
-  - Charts powered by Chart.js and react-chartjs-2
+## Scripts
+- `pnpm dev` — run client + server with hot reload.
+- `pnpm dev:client` / `pnpm dev:server` — run each side independently.
+- `pnpm build` — type-check and produce production builds (`dist/` for client, `server/dist/` for API).
+- `pnpm start` — launch the compiled server (expects `dist/` assets in place).
+- `pnpm db:push` — sync Prisma schema to the current database.
+- `pnpm db:reset` — drop and recreate the database (dangerous in production).
+- `pnpm migrate` — run Prisma migrations in production environments.
+- `pnpm typecheck` — run TypeScript checks for both client and server.
 
-- **Backend** powered by Node.js + Express
-  - RESTful API for trades and user management
-  - Secure JWT-based authentication
-  - Business logic for validation and user isolation
+## Environment Reference
+All variables live in `.env` and are optional unless stated otherwise.
 
-- **Database** with PostgreSQL
-  - Persistent and reliable storage
-  - Prisma ORM for migrations and schema management
+| Key | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Prisma connection string (defaults to `file:./prisma/dev.db`). |
+| `PORT` / `WS_PORT` | API and WebSocket ports. |
+| `JWT_SECRET` | Secret used to sign authentication tokens. |
+| `ADMIN_WALLETS` | Comma-separated wallet addresses promoted to admin on first login. |
+| `CRYPTOCOMPARE_API_KEY` | Optional key that unlocks higher rate limits for price polling. |
+| `WORKER_POLL_MS` | Interval for the background price worker (default 60 seconds). |
+| `VITE_API_URL` | Client-side base URL for REST calls (default `http://localhost:5883/api`). |
+| `VITE_WALLETCONNECT_PROJECT_ID` | Required for WalletConnect UI. Sign up at [walletconnect.com](https://cloud.walletconnect.com/). |
+| `VITE_DEFAULT_CHAIN_ID` | Defaults to Ethereum mainnet (`1`). |
+| `VITE_API_ENDPOINT_URL`, `VITE_API_SECRET_TOKEN` | API docs use these to build cURL snippets; the secret must be ≤16 alphanumeric chars. |
+| `VITE_DEFAULT_TIMEFRAME` | Default candlestick timeframe (`1m`, `5m`, `15m`, `30m`, `1h`, `4h`). |
+| `VITE_TWEET_SOURCE` | Optional X (Twitter) username used to validate trade post URLs. |
+| `VITE_X_*` and API key fields | Optional integrations for streaming trades from X (Twitter) or third-party data sources. |
 
----
+## Admin & User Workflow
+- **Wallet login**: set `ADMIN_WALLETS` to promote selected addresses on first SIWE authentication.
+- **Adding trades**: admins can open the "Add New Trade" modal; real-time listeners pick up the changes.
+- **Closing trades**: use the inline actions or the "Close all" button; P/L history is recalculated automatically.
+- **API access**: copy the bearer token from the Profile view and follow the autogenerated cURL snippet inside the "API Docs" page.
+- **Database maintenance**: the Danger Zone panel includes reset tools that call the protected API endpoints.
 
-## 📌 Architecture
+## Production Notes
+1. Build artifacts:
+   ```bash
+   pnpm build
+   pnpm start
+   ```
+2. Serve the client bundle from any static host; the Express server already exposes `dist/`.
+3. For a managed database, set `DATABASE_URL` to your Postgres/MySQL instance and run `pnpm migrate`.
+4. Consider running the server with a process manager such as PM2 or systemd and placing it behind a reverse proxy (Nginx/Caddy).
 
-The following diagram illustrates the architecture and data flow of AIRTrack:
+## Security Checklist
+- Rotate `JWT_SECRET` in production and store it outside the repository.
+- Use strong ACLs for `ADMIN_WALLETS`; wallet promotion happens automatically.
+- Rate-limit public endpoints when deploying to the internet (e.g., via Nginx or Cloudflare).
+- Configure HTTPS on the reverse proxy to protect SIWE responses and API calls.
+- Restrict `.env` permissions; secrets never leave the machine thanks to `.gitignore`.
 
-### Architecture Diagram
-<div align="center">
-<img alt="Diagram" src="https://github.com/0xfunboy/AIRTrack/blob/main/TechArch.png" />
-</div>
-
-- **Frontend (React/Vite)** → User interface, charts, forms  
-- **Backend (Node.js/Express)** → Authentication, validation, CRUD API  
-- **Database (PostgreSQL)** → Persistent storage for users and trades  
-
----
-
-## 🛠️ Installation & Setup
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/your-repo/airtrack.git
-cd airtrack
-````
-
-### 2. Install dependencies
-
-```bash
-pnpm install
-```
-
-### 3. Setup PostgreSQL
-
-```bash
-sudo apt install postgresql postgresql-contrib -y
-sudo -u postgres psql
-CREATE DATABASE airtrack;
-CREATE USER airtrack_user WITH ENCRYPTED PASSWORD 'secure_password';
-GRANT ALL PRIVILEGES ON DATABASE airtrack TO airtrack_user;
-\q
-```
-
-### 4. Configure environment variables
-
-Edit `.env`:
-
-```env
-DATABASE_URL="postgresql://airtrack_user:secure_password@localhost:5432/airtrack"
-JWT_SECRET="your_secret_key"
-```
-
-### 5. Run migrations
-
-```bash
-pnpm prisma migrate dev --name init
-```
-
-### 6. Build frontend & start server
-
-```bash
-pnpm build
-pnpm start
-```
-
-Visit: [http://localhost:3000](http://localhost:3000)
-
----
-
-## 📦 Deployment
-
-* Use **pm2** to keep the server alive:
-
-```bash
-pnpm add -g pm2
-pm2 start server.js --name airtrack
-pm2 save
-```
-
-* Use **Nginx** as a reverse proxy with HTTPS (Let’s Encrypt recommended).
+## Troubleshooting
+| Symptom | Fix |
+| --- | --- |
+| `pnpm install` fails | Ensure you have internet access or use a local package mirror. The repo adds new dev dependencies (`tsx`, `concurrently`, `@types/*`). |
+| Wallet modal crashes on load | Double-check `VITE_WALLETCONNECT_PROJECT_ID`. Without a valid value the modal cannot initialize. |
+| SQLite file is missing | Run `pnpm db:push` (it auto-creates `prisma/dev.db`). |
+| API rejects admin actions | Confirm your wallet address is listed in `ADMIN_WALLETS` and that you signed in via SIWE. |
 
 ---
-
-## 📜 License
-
-MIT License – free to use and modify.
-
-Vuoi che ti crei anche il file `README.md` già pronto da salvare dentro la root del progetto (`/home/funboy/airtrack/README.md`)?
-```
+Built with ❤️ by AIRewardrop for operational traders who need insight and control.

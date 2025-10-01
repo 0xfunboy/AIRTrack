@@ -143,7 +143,7 @@ function normalizeOhlcvResponse(raw: any): OhlcvResponse {
 
   return {
     symbol: typeof raw?.symbol === 'string' ? raw.symbol : '',
-    tf: typeof raw?.tf === 'string' ? raw.tf : '1m',
+    tf: typeof raw?.tf === 'string' ? raw.tf : '1h',
     data: dataArray.map(normalizeOhlcvPoint),
   };
 }
@@ -267,8 +267,15 @@ export async function fetchTrades(params: FetchTradesParams = {}): Promise<Trade
 
 export const getTrades = fetchTrades;
 
-export async function fetchOhlcv(tradeId: number, token?: string | null): Promise<OhlcvResponse> {
-  const raw = await request(`/trades/${tradeId}/ohlcv`, { method: 'GET' }, { token });
+export interface FetchOhlcvOptions {
+  timeframe?: string;
+  token?: string | null;
+}
+
+export async function fetchOhlcv(tradeId: number, options: FetchOhlcvOptions = {}): Promise<OhlcvResponse> {
+  const { timeframe, token = null } = options;
+  const qs = timeframe ? `?tf=${encodeURIComponent(timeframe)}` : '';
+  const raw = await request(`/trades/${tradeId}/ohlcv${qs}`, { method: 'GET' }, { token });
   return normalizeOhlcvResponse(raw);
 }
 
