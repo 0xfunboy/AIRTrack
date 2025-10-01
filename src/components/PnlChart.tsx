@@ -32,7 +32,27 @@ function createGradient(ctx: CanvasRenderingContext2D, area: any, data: number[]
   const colorZero = 'rgba(239, 68, 68, 0.0)';
 
   const gradient = ctx.createLinearGradient(0, area.bottom, 0, area.top);
-  const [min, max] = data.reduce((acc, val) => [Math.min(val, acc[0]), Math.max(val, acc[1])], [Infinity, -Infinity]);
+  const finiteValues = data.filter((value) => Number.isFinite(value));
+
+  if (!finiteValues.length) {
+    gradient.addColorStop(0, colorZero);
+    gradient.addColorStop(1, colorZero);
+    return gradient;
+  }
+
+  const min = Math.min(...finiteValues);
+  const max = Math.max(...finiteValues);
+
+  if (max === min) {
+    if (max <= 0) {
+      gradient.addColorStop(0, max < 0 ? colorDown : colorZero);
+      gradient.addColorStop(1, colorZero);
+    } else {
+      gradient.addColorStop(0, colorZero);
+      gradient.addColorStop(1, colorUp);
+    }
+    return gradient;
+  }
 
   if (max < 0) {
     gradient.addColorStop(0, colorDown);
@@ -41,7 +61,7 @@ function createGradient(ctx: CanvasRenderingContext2D, area: any, data: number[]
     gradient.addColorStop(0, colorZero);
     gradient.addColorStop(1, colorUp);
   } else {
-    const zeroPoint = 1 - (max / (max - min));
+    const zeroPoint = 1 - max / (max - min);
     gradient.addColorStop(0, colorDown);
     gradient.addColorStop(Math.max(0, zeroPoint - 0.01), colorDown);
     gradient.addColorStop(Math.min(1, zeroPoint + 0.01), colorUp);
