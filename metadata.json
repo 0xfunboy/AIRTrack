@@ -1,0 +1,5 @@
+{
+  "name": "AIRTrack - Trade Tracker",
+  "description": "AIRTrack - Trade Tracker dashboard with a candlestick chart and performance statistics for monitoring trading activity.",
+  "requestFramePermissions": []
+}
