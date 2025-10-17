@@ -17,6 +17,8 @@ const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL } } });
 
 const PORT = Number(process.env.PORT || 5883);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
+const API_SECRET_TOKEN = (process.env.API_SECRET_TOKEN || '').trim();
+const API_SECRET_USERNAME = process.env.API_SECRET_USERNAME || 'api_service';
 const CRYPTOCOMPARE_API_KEY =
   process.env.CRYPTOCOMPARE_API_KEY ||
   process.env.CRYPTOCOMPARE_API ||
@@ -45,6 +47,38 @@ const TIMEFRAME_SETTINGS: Record<string, { endpoint: 'histominute' | 'histohour'
 
 const NONCE_STORE = new Map<string, { address: string; expires: number }>();
 const NONCE_TTL_MS = Number(process.env.NONCE_TTL_MS || 5 * 60 * 1000);
+
+let cachedApiUserId: number | null = null;
+
+const ensureApiServiceUser = async (): Promise<number | null> => {
+  if (!API_SECRET_TOKEN) return null;
+  if (cachedApiUserId) return cachedApiUserId;
+
+  try {
+    const existing = await prisma.user.findUnique({ where: { username: API_SECRET_USERNAME } });
+    if (existing) {
+      if (!existing.isAdmin) {
+        await prisma.user.update({ where: { id: existing.id }, data: { isAdmin: true } });
+      }
+      cachedApiUserId = existing.id;
+      return cachedApiUserId;
+    }
+
+    const created = await prisma.user.create({
+      data: {
+        username: API_SECRET_USERNAME,
+        password: crypto.randomBytes(24).toString('hex'),
+        isAdmin: true,
+      },
+    });
+
+    cachedApiUserId = created.id;
+    return cachedApiUserId;
+  } catch (error) {
+    console.error('Failed to provision API secret user:', error);
+    return null;
+  }
+};
 
 interface JwtPayload {
   id: number;
@@ -143,11 +177,27 @@ const getOrigin = (req: Request) => {
   return `${proto}://${getHost(req)}`;
 };
 
-const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+const authMiddleware = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    const header = req.headers.authorization || '';
-    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-    if (!token) return res.status(401).json({ error: 'Missing token' });
+    const authorization = req.headers.authorization || '';
+    const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+    const apiKeyHeader = req.headers['x-api-key'];
+    const apiKey = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader || '';
+
+    const candidateSecret = token || apiKey;
+    if (API_SECRET_TOKEN && candidateSecret === API_SECRET_TOKEN) {
+      const userId = await ensureApiServiceUser();
+      if (!userId) {
+        return res.status(500).json({ error: 'API secret unavailable' });
+      }
+      req.user = { id: userId, address: 'api-secret', isAdmin: true };
+      return next();
+    }
+
+    if (!token) {
+      return res.status(401).json({ error: 'Missing token' });
+    }
+
     const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
     req.user = payload;
     return next();

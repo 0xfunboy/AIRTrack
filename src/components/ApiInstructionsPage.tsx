@@ -24,7 +24,8 @@ const FieldRow = ({ field, type, required, description }: { field: string, type:
 
 function ApiInstructionsPage({ onBack }: ApiInstructionsPageProps) {
     const { envConfig } = useAuth();
-    const apiEndpoint = envConfig.VITE_API_ENDPOINT_URL || 'http://localhost:5883/api/v1';
+    const baseEndpoint = (envConfig.VITE_API_URL || envConfig.VITE_API_ENDPOINT_URL || `${window.location.origin}/api`).replace(/\/$/, '');
+    const apiEndpoint = baseEndpoint;
     const apiSecret = envConfig.VITE_API_SECRET_TOKEN || '[Set in Profile]';
 
     const examplePayload = `{
