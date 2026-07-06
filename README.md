@@ -1,3 +1,11 @@
+<div align="center">
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=160&section=header&text=AIRTrack&fontSize=60&fontColor=fff&animation=fadeIn&fontAlignY=38&desc=AIR3%20AI%20Agent%20Autotrading%20Tracking%20dApp%20-%20Receive%20trade%20post%20from%20AIR3%20AI%20A...&descAlignY=60&descSize=14" width="100%"/>
+
+<img src="https://skillicons.dev/icons?i=ts,html,bash,nodejs&theme=dark" alt="Tech stack"/>
+
+</div>
+
 # AIRTrack — Trading Operations Dashboard
 
 AIRTrack is a full-stack dashboard for managing discretionary trading activity. The project now ships as a lean TypeScript codebase with a Vite/React client, an Express API written in TypeScript, Prisma ORM, and a PostgreSQL database layer (SQLite remains an option if you tweak the schema).
