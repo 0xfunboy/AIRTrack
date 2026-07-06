@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=160&section=header&text=AIRTrack&fontSize=60&fontColor=fff&animation=fadeIn&fontAlignY=38&desc=AIR3%20AI%20Agent%20Autotrading%20Tracking%20dApp%20-%20Receive%20trade%20post%20from%20AIR3%20AI%20A...&descAlignY=60&descSize=14" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=160&section=header&text=AIRTrack&fontSize=60&fontColor=fff&animation=fadeIn&fontAlignY=38&desc=AIR3%20AI%20Agent%20Autotrading%20Tracking%20dApp%20-%20Receive%20trade%20post%20from%20AIR3%20AI...&descAlignY=60&descSize=14" width="100%"/>
 
 <img src="https://skillicons.dev/icons?i=ts,html,bash,nodejs&theme=dark" alt="Tech stack"/>
 
